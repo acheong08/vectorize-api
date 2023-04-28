@@ -38,19 +38,21 @@ class Utilities:
         return embeddings.tolist()
 
     @staticmethod
-    def semantic_search(corpus: List[str], query: str, num_results: int) -> list[list]:
+    def semantic_search(corpus: List[str], query: str, num_results: int) -> list[dict]:
         query_embedding = model.encode([query])
         # Check validity of num_results
         if num_results > len(corpus):
             num_results = len(corpus)
         corpus_embeddings = model.encode(corpus)
-        closest_n = util.semantic_search(
+        closest_n: List[dict] = util.semantic_search(
             query_embedding, corpus_embeddings, top_k=num_results
-        )
+        )[0]
         # Return the string of the most similar sentences
-        results = []
-        for idx, score in zip(closest_n[0], closest_n[1]):
-            results.append({"sentence": corpus[idx], "score": score})
+        results: List[dict] = []
+        for n in closest_n:
+            results.append(
+                {"score": n.get("score"), "sentence": corpus[n.get("corpus_id")]}
+            )
         return results
 
 
