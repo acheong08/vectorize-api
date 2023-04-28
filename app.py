@@ -96,7 +96,6 @@ async def semantic_search(request: SemanticSearchRequest):
                     "sentence": request.corpus[n.get("corpus_id")],
                 }
             )
-        return results
     elif request.mode == "number":
         # Return the number of the most similar sentences
         for n in closest_n:
@@ -108,6 +107,7 @@ async def semantic_search(request: SemanticSearchRequest):
             )
     else:
         return jsonify({"error": "Invalid mode"})
+    return results
 
 
 if __name__ == "__main__":
