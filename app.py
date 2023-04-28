@@ -1,15 +1,17 @@
 """
 Fast API server for sentence vectorization
 """
+from os import getenv
 from typing import List
 
 import uvicorn
 from fastapi import FastAPI
+from flask import jsonify
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
+from sentence_transformers import util
 
 # jsonify
-from flask import jsonify
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -59,7 +61,9 @@ class Utilities:
             num_results = len(corpus)
         corpus_embeddings = model.encode(corpus)
         closest_n: List[dict] = util.semantic_search(
-            query_embedding, corpus_embeddings, top_k=num_results
+            query_embedding,
+            corpus_embeddings,
+            top_k=num_results,
         )[0]
         return closest_n
 
@@ -84,7 +88,9 @@ async def semantic_search(request: SemanticSearchRequest):
     Output: [{"score":0.7520363330841064,"sentence":"Firefox"},{"score":0.724408745765686,"sentence":"Google Chrome"}]
     """
     closest_n = Utilities.semantic_search(
-        request.corpus, request.query, request.num_results
+        request.corpus,
+        request.query,
+        request.num_results,
     )
     results: List[dict] = []
     if request.mode == "sentence":
@@ -94,16 +100,16 @@ async def semantic_search(request: SemanticSearchRequest):
                 {
                     "score": n.get("score"),
                     "sentence": request.corpus[n.get("corpus_id")],
-                }
+                },
             )
     elif request.mode == "number":
-        # Return the number of the most similar sentences
+        # Return the nresults: List[dict] = []umber of the most similar sentences
         for n in closest_n:
             results.append(
                 {
                     "score": n.get("score"),
                     "number": n.get("corpus_id"),
-                }
+                },
             )
     else:
         return jsonify({"error": "Invalid mode"})
@@ -111,4 +117,6 @@ async def semantic_search(request: SemanticSearchRequest):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    host = getenv("HOST", "127.0.0.1")
+    port = getenv("PORT", "8000")
+    uvicorn.run(app, host=host, port=int(port))
