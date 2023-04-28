@@ -80,7 +80,7 @@ async def encode(sentences: Sentences):
 async def semantic_search(request: SemanticSearchRequest):
     """
     Semantic search
-    Input: {"corpus":["Google Chrome", "Firefox", "Eggshells", "Garbage"], "query": "Browser", "num_results": 2}
+    Input: {"corpus":["Google Chrome", "Firefox", "Eggshells", "Garbage"], "query": "Browser", "num_results": 2, "mode": "sentence"}
     Output: [{"score":0.7520363330841064,"sentence":"Firefox"},{"score":0.724408745765686,"sentence":"Google Chrome"}]
     """
     closest_n = Utilities.semantic_search(
