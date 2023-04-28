@@ -8,6 +8,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer, util
 
+# jsonify
+from flask import jsonify
+
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 app = FastAPI()
@@ -29,6 +32,7 @@ class SemanticSearchRequest(BaseModel):
     corpus: List[str]
     query: str
     num_results: int = 1
+    mode: str
 
 
 class Utilities:
@@ -57,13 +61,7 @@ class Utilities:
         closest_n: List[dict] = util.semantic_search(
             query_embedding, corpus_embeddings, top_k=num_results
         )[0]
-        # Return the string of the most similar sentences
-        results: List[dict] = []
-        for n in closest_n:
-            results.append(
-                {"score": n.get("score"), "sentence": corpus[n.get("corpus_id")]}
-            )
-        return results
+        return closest_n
 
 
 # // Developer's Note: You can only vectorize but not the other way around.
@@ -85,10 +83,31 @@ async def semantic_search(request: SemanticSearchRequest):
     Input: {"corpus":["Google Chrome", "Firefox", "Eggshells", "Garbage"], "query": "Browser", "num_results": 2}
     Output: [{"score":0.7520363330841064,"sentence":"Firefox"},{"score":0.724408745765686,"sentence":"Google Chrome"}]
     """
-    results = Utilities.semantic_search(
+    closest_n = Utilities.semantic_search(
         request.corpus, request.query, request.num_results
     )
-    return results
+    results: List[dict] = []
+    if request.mode == "sentence":
+        # Return the string of the most similar sentences
+        for n in closest_n:
+            results.append(
+                {
+                    "score": n.get("score"),
+                    "sentence": request.corpus[n.get("corpus_id")],
+                }
+            )
+        return results
+    elif request.mode == "number":
+        # Return the number of the most similar sentences
+        for n in closest_n:
+            results.append(
+                {
+                    "score": n.get("score"),
+                    "number": n.get("corpus_id"),
+                }
+            )
+    else:
+        return jsonify({"error": "Invalid mode"})
 
 
 if __name__ == "__main__":
