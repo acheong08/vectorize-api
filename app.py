@@ -103,7 +103,7 @@ async def semantic_search(request: SemanticSearchRequest):
                 },
             )
     elif request.mode == "number":
-        # Return the nresults: List[dict] = []umber of the most similar sentences
+        # Return the results: List[dict] = []number of the most similar sentences
         for n in closest_n:
             results.append(
                 {
