@@ -32,13 +32,23 @@ class SemanticSearchRequest(BaseModel):
 
 
 class Utilities:
+    """
+    Methods for vectorization and semantic search
+    """
+
     @staticmethod
     def encode(sentences: str) -> List[float]:
+        """
+        Convert sentences to vectors
+        """
         embeddings = model.encode(sentences)
         return embeddings.tolist()
 
     @staticmethod
     def semantic_search(corpus: List[str], query: str, num_results: int) -> list[dict]:
+        """
+        Get the most similar sentences from the corpus to the query
+        """
         query_embedding = model.encode([query])
         # Check validity of num_results
         if num_results > len(corpus):
