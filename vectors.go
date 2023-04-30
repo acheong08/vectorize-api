@@ -9,6 +9,11 @@ type Tensor [][]float64
 
 type Callable func(Tensor, Tensor) Tensor
 
+type SearchResult struct {
+	CorpusID int
+	Score    float64
+}
+
 func DotProduct(a, b []float64) float64 {
 	result := 0.0
 	for i := range a {
@@ -41,9 +46,9 @@ func CosSim(queryEmbeddings, corpusEmbeddings Tensor) Tensor {
 	return cosScores
 }
 
-func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, corpusChunkSize, topK int) []([]map[string]interface{}) {
+func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, corpusChunkSize, topK int) [][]SearchResult {
 
-	queriesResultList := make([]([]map[string]interface{}), len(queryEmbeddings))
+	queriesResultList := make([][]SearchResult, len(queryEmbeddings))
 
 	for queryStartIdx := 0; queryStartIdx < len(queryEmbeddings); queryStartIdx += queryChunkSize {
 		for corpusStartIdx := 0; corpusStartIdx < len(corpusEmbeddings); corpusStartIdx += corpusChunkSize {
@@ -60,34 +65,35 @@ func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, co
 			cosScores := CosSim(queryEmbeddings[queryStartIdx:queryEndIdx], corpusEmbeddings[corpusStartIdx:corpusEndIdx])
 
 			for queryItr := 0; queryItr < len(cosScores); queryItr++ {
-				cosScoresTopKIdx := make([]int, 0, topK)
-				cosScoresTopKValues := make([]float64, 0, topK)
+				cosScoresTopKIdx := make([]int, topK)
+				cosScoresTopKValues := make([]float64, topK)
+				numTopK := 0
 
 				for i := 0; i < len(cosScores[queryItr]); i++ {
-					if len(cosScoresTopKIdx) < topK || cosScores[queryItr][i] > cosScoresTopKValues[0] {
-						cosScoresTopKIdx = append(cosScoresTopKIdx, i)
-						cosScoresTopKValues = append(cosScoresTopKValues, cosScores[queryItr][i])
-
-						for idx := len(cosScoresTopKValues) - 1; idx > 0; idx-- {
-							if cosScoresTopKValues[idx] > cosScoresTopKValues[idx-1] {
-								cosScoresTopKValues[idx], cosScoresTopKValues[idx-1] = cosScoresTopKValues[idx-1], cosScoresTopKValues[idx]
-								cosScoresTopKIdx[idx], cosScoresTopKIdx[idx-1] = cosScoresTopKIdx[idx-1], cosScoresTopKIdx[idx]
-							} else {
-								break
-							}
+					if numTopK < topK || cosScores[queryItr][i] > cosScoresTopKValues[0] {
+						insertIdx := 0
+						if numTopK < topK {
+							insertIdx = numTopK
+							numTopK++
+						} else {
+							insertIdx = 0
 						}
 
-						if len(cosScoresTopKValues) > topK {
-							cosScoresTopKValues = cosScoresTopKValues[:topK]
-							cosScoresTopKIdx = cosScoresTopKIdx[:topK]
+						// Shift elements to the right to make space for the new element
+						for idx := insertIdx + 1; idx < numTopK; idx++ {
+							cosScoresTopKIdx[idx] = cosScoresTopKIdx[idx-1]
+							cosScoresTopKValues[idx] = cosScoresTopKValues[idx-1]
 						}
+
+						cosScoresTopKIdx[insertIdx] = i
+						cosScoresTopKValues[insertIdx] = cosScores[queryItr][i]
 					}
 				}
 
 				queryID := queryStartIdx + queryItr
 				for idx, subCorpusID := range cosScoresTopKIdx {
 					corpusID := corpusStartIdx + subCorpusID
-					queriesResultList[queryID] = append(queriesResultList[queryID], map[string]interface{}{"corpus_id": corpusID, "score": cosScoresTopKValues[idx]})
+					queriesResultList[queryID] = append(queriesResultList[queryID], SearchResult{CorpusID: corpusID, Score: cosScoresTopKValues[idx]})
 				}
 			}
 		}
@@ -95,7 +101,7 @@ func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, co
 
 	for idx := range queriesResultList {
 		sort.SliceStable(queriesResultList[idx], func(i, j int) bool {
-			return queriesResultList[idx][i]["score"].(float64) > queriesResultList[idx][j]["score"].(float64)
+			return queriesResultList[idx][i].Score > queriesResultList[idx][j].Score
 		})
 		queriesResultList[idx] = queriesResultList[idx][:topK]
 	}

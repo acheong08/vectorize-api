@@ -63,13 +63,15 @@ func TestSemanticSearch(t *testing.T) {
 	corpusChunkSize := 2
 	topK := 2
 
-	expectedResult := []([]map[string]interface{}){{
-		{"corpus_id": 0, "score": 1},
-		{"corpus_id": 1, "score": 0},
-	}, {
-		{"corpus_id": 1, "score": 1},
-		{"corpus_id": 0, "score": 0},
-	}}
+	expectedResult := [][]vectors.SearchResult{
+		{
+			{CorpusID: 0, Score: 1},
+			{CorpusID: 1, Score: 0},
+		}, {
+			{CorpusID: 1, Score: 1},
+			{CorpusID: 0, Score: 0},
+		},
+	}
 	actualResult := vectors.SemanticSearch(queryEmbeddings, corpusEmbeddings, queryChunkSize, corpusChunkSize, topK)
 
 	// Convert both to JSON string
