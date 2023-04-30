@@ -1,6 +1,7 @@
 package vectors
 
 import (
+	"container/heap"
 	"math"
 	"sort"
 )
@@ -46,8 +47,30 @@ func CosSim(queryEmbeddings, corpusEmbeddings Tensor) Tensor {
 	return cosScores
 }
 
-func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, corpusChunkSize, topK int) [][]SearchResult {
+type SearchResultHeap []SearchResult
 
+func (h SearchResultHeap) Len() int           { return len(h) }
+func (h SearchResultHeap) Less(i, j int) bool { return h[i].Score < h[j].Score }
+func (h SearchResultHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *SearchResultHeap) Push(x interface{}) {
+	*h = append(*h, x.(SearchResult))
+}
+
+func (h *SearchResultHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	*h = old[0 : n-1]
+	return item
+}
+
+// Peek returns the smallest element from the SearchResultHeap without removing it.
+func (h SearchResultHeap) Peek() SearchResult {
+	return h[0]
+}
+
+func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, corpusChunkSize, topK int) [][]SearchResult {
 	queriesResultList := make([][]SearchResult, len(queryEmbeddings))
 
 	for queryStartIdx := 0; queryStartIdx < len(queryEmbeddings); queryStartIdx += queryChunkSize {
@@ -65,35 +88,23 @@ func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, co
 			cosScores := CosSim(queryEmbeddings[queryStartIdx:queryEndIdx], corpusEmbeddings[corpusStartIdx:corpusEndIdx])
 
 			for queryItr := 0; queryItr < len(cosScores); queryItr++ {
-				cosScoresTopKIdx := make([]int, topK)
-				cosScoresTopKValues := make([]float64, topK)
-				numTopK := 0
+				pq := &SearchResultHeap{}
+				heap.Init(pq)
 
 				for i := 0; i < len(cosScores[queryItr]); i++ {
-					if numTopK < topK || cosScores[queryItr][i] > cosScoresTopKValues[0] {
-						insertIdx := 0
-						if numTopK < topK {
-							insertIdx = numTopK
-							numTopK++
-						} else {
-							insertIdx = 0
-						}
-
-						// Shift elements to the right to make space for the new element
-						for idx := insertIdx + 1; idx < numTopK; idx++ {
-							cosScoresTopKIdx[idx] = cosScoresTopKIdx[idx-1]
-							cosScoresTopKValues[idx] = cosScoresTopKValues[idx-1]
-						}
-
-						cosScoresTopKIdx[insertIdx] = i
-						cosScoresTopKValues[insertIdx] = cosScores[queryItr][i]
+					if pq.Len() < topK {
+						heap.Push(pq, SearchResult{CorpusID: i, Score: cosScores[queryItr][i]})
+					} else if cosScores[queryItr][i] > pq.Peek().Score {
+						heap.Pop(pq)
+						heap.Push(pq, SearchResult{CorpusID: i, Score: cosScores[queryItr][i]})
 					}
 				}
 
 				queryID := queryStartIdx + queryItr
-				for idx, subCorpusID := range cosScoresTopKIdx {
-					corpusID := corpusStartIdx + subCorpusID
-					queriesResultList[queryID] = append(queriesResultList[queryID], SearchResult{CorpusID: corpusID, Score: cosScoresTopKValues[idx]})
+				for pq.Len() > 0 {
+					result := heap.Pop(pq).(SearchResult)
+					result.CorpusID += corpusStartIdx
+					queriesResultList[queryID] = append(queriesResultList[queryID], result)
 				}
 			}
 		}
@@ -105,6 +116,5 @@ func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, co
 		})
 		queriesResultList[idx] = queriesResultList[idx][:topK]
 	}
-
 	return queriesResultList
 }
