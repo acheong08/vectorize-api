@@ -1,7 +1,3 @@
 {
-  "cSpell.words": [
-    "pydantic",
-    "uvicorn",
-    "vectorize"
-  ]
+  "cSpell.words": ["pydantic", "uvicorn", "vectorize", "vectorizeapi"]
 }
