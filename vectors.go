@@ -47,7 +47,17 @@ func SemanticSearch(queryEmbeddings, corpusEmbeddings Tensor, queryChunkSize, co
 
 	for queryStartIdx := 0; queryStartIdx < len(queryEmbeddings); queryStartIdx += queryChunkSize {
 		for corpusStartIdx := 0; corpusStartIdx < len(corpusEmbeddings); corpusStartIdx += corpusChunkSize {
-			cosScores := CosSim(queryEmbeddings[queryStartIdx:queryStartIdx+queryChunkSize], corpusEmbeddings[corpusStartIdx:corpusStartIdx+corpusChunkSize])
+			queryEndIdx := queryStartIdx + queryChunkSize
+			if queryEndIdx > len(queryEmbeddings) {
+				queryEndIdx = len(queryEmbeddings)
+			}
+
+			corpusEndIdx := corpusStartIdx + corpusChunkSize
+			if corpusEndIdx > len(corpusEmbeddings) {
+				corpusEndIdx = len(corpusEmbeddings)
+			}
+
+			cosScores := CosSim(queryEmbeddings[queryStartIdx:queryEndIdx], corpusEmbeddings[corpusStartIdx:corpusEndIdx])
 
 			for queryItr := 0; queryItr < len(cosScores); queryItr++ {
 				cosScoresTopKIdx := make([]int, 0, topK)

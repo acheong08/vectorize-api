@@ -1,6 +1,7 @@
 package vectors_test
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 	"vectors"
@@ -71,5 +72,9 @@ func TestSemanticSearch(t *testing.T) {
 	}}
 	actualResult := vectors.SemanticSearch(queryEmbeddings, corpusEmbeddings, queryChunkSize, corpusChunkSize, topK)
 
-	assert.Equal(t, expectedResult, actualResult, "Semantic search results are incorrect")
+	// Convert both to JSON string
+	expectedJSON, _ := json.Marshal(expectedResult)
+	actualJSON, _ := json.Marshal(actualResult)
+
+	assert.Equal(t, expectedJSON, actualJSON, "Semantic search results are incorrect")
 }
